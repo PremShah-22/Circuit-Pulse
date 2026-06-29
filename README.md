@@ -166,19 +166,6 @@ CircuitPulse/
 * Beginner-friendly interface
 * Educational visualization
 
----
-
-## 📸 Preview
-
-Add screenshots here after uploading them.
-
-```
-assets/
-    home.png
-    simulation.png
-    phasor.png
-    bode.png
-```
 
 ---
 
