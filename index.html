@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CircuitPulse — Prem Shah</title>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --card-bg: #111827;
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.15);
+            --resistor-color: #4ade80;
+            --inductor-color: #fb923c;
+            --capacitor-color: #f472b6;
+            --voltage-color: #f59e0b;
+            --current-color: #10b981;
+            --text-light: #f8fafc;
+            --text-muted: #64748b;
+            --border-color: #1f2937;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body, html {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            width: 100vw;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Welcome Screen Styles */
+        #welcome-screen {
+            justify-content: space-between;
+            align-items: center;
+            padding: 60px 20px;
+            text-align: center;
+            background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg-dark) 70%);
+            position: relative;
+        }
+
+        #welcome-screen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: 1;
+        }
+
+        .welcome-content {
+            z-index: 2;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .welcome-content h1 {
+            font-size: 3.5rem;
+            color: var(--primary);
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 40px var(--primary-glow);
+        }
+
+        .welcome-content p {
+            color: #94a3b8;
+            font-size: 1.25rem;
+            margin-bottom: 40px;
+        }
+
+        .lab-quote {
+            background: rgba(17, 24, 39, 0.7);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+            margin-bottom: 40px;
+            font-style: italic;
+            line-height: 1.8rem;
+            color: #e2e8f0;
+        }
+
+        .launch-btn {
+            background: var(--primary);
+            color: var(--bg-dark);
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 30px var(--primary-glow);
+            transition: all 0.3s;
+        }
+
+        .launch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 45px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Dashboard Screen Layout */
+        #dashboard-screen {
+            padding: 30px 20px;
+            align-items: center;
+        }
+
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            width: 100%;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .navigation-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .dash-back-btn, .nav-tab-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .nav-tab-btn.active-nav {
+            background: var(--primary);
+            color: var(--bg-dark);
+            border-color: var(--primary);
+        }
+
+        .dash-back-btn:hover, .nav-tab-btn:hover:not(.active-nav) { background: #1f2937; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 25px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        @media (max-width: 1100px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .dashboard-view-panel {
+            display: none;
+            width: 100%;
+        }
+
+        .dashboard-view-panel.panel-active {
+            display: block;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 0.9rem; }
+        
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 6px; background: #1f2937; border-radius: 3px; outline: none; margin: 8px 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--text-light); cursor: pointer;
+        }
+
+        /* Number input field styling for true micro-control updates */
+        .numeric-input-field {
+            background: #06090f;
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            padding: 6px 12px;
+            border-radius: 6px;
+            width: 90px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-align: right;
+            outline: none;
+        }
+        .numeric-input-field:focus {
+            border-color: var(--primary);
+        }
+
+        .tab-bar {
+            display: flex; background: #0b0f17; padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        .tab-btn {
+            flex: 1; padding: 10px; background: none; border: none; color: var(--text-muted); font-weight: 600; cursor: pointer; border-radius: 6px;
+        }
+        .tab-btn.active { background: var(--primary); color: var(--bg-dark); }
+
+        .canvas-box {
+            background: #06090f; border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; position: relative; width: 100%;
+        }
+        canvas { display: block; width: 100%; aspect-ratio: 16/9; }
+
+        .metrics-subgrid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+        }
+        .metric-tile {
+            background: rgba(6, 9, 15, 0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        .tile-lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .tile-val { font-size: 1.2rem; font-weight: 700; margin-top: 2px; }
+
+        /* Importance/About Tab Styling */
+        .info-layout-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .info-section h4 {
+            color: var(--primary);
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .info-section p {
+            color: #94a3b8;
+            line-height: 1.85rem;
+            font-size: 1.05rem;
+            text-align: justify;
+            margin-bottom: 15px;
+        }
+
+        .info-bullet-list {
+            list-style-type: none;
+            padding-left: 5px;
+        }
+
+        .info-bullet-list li {
+            position: relative;
+            padding-left: 25px;
+            margin-bottom: 12px;
+            color: #e2e8f0;
+            line-height: 1.7rem;
+        }
+
+        .info-bullet-list li::before {
+            content: "⚡";
+            position: absolute;
+            left: 0;
+            top: 2px;
+            color: var(--voltage-color);
+        }
+
+        /* General Branding Footers */
+        .brand-footer {
+            width: 100%; text-align: center; padding: 25px 20px; color: var(--text-muted); font-size: 0.9rem; z-index: 2;
+        }
+        .brand-footer border { border-top: 1px solid var(--border-color); max-width: 1400px; margin: 0 auto; padding-top: 20px; }
+        .links-container { margin-top: 8px; }
+        .links-container a { color: var(--primary); text-decoration: none; font-weight: 600; margin: 0 12px; }
+        .links-container a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div id="welcome-screen" class="screen active">
+        <div></div>
+        <div class="welcome-content">
+            <h1>CircuitPulse Vector Laboratory</h1>
+            <p>Advanced Real-Time Alternating Current Physics & Simulation Framework</p>
+            
+            <div class="lab-quote">
+                "To understand the hidden alternating dimensions of electrical vector resonance is to touch the computational heartbeat of modern instrumentation physics."
+            </div>
+            
+            <button class="launch-btn" onclick="toggleDisplayView('dashboard-screen')">Initialize Simulation Engine</button>
+        </div>
+
+        <footer class="brand-footer">
+            <div style="border-top: 1px solid var(--border-color); padding-top: 15px; max-width: 800px; margin: 0 auto;">
+                <p>&copy; 2026. All Intellectual Property Architected & Programmed by <strong>Prem Shah</strong>.</p>
+                <div class="links-container">
+                    <a href="https://github.com/PremShah-22" target="_blank">GitHub</a>
+                    <a href="https://www.linkedin.com/in/prem-shah-848054389" target="_blank">LinkedIn</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="dashboard-screen" class="screen">
+        <header class="dash-header">
+            <div>
+                <h2 style="color: var(--primary); font-weight: 800; font-size: 1.8rem;">CircuitPulse Labs</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Real-time analysis model compiled successfully.</p>
+            </div>
+            <div class="navigation-links">
+                <button class="nav-tab-btn active-nav" id="nav-btn-simulation" onclick="switchDashboardPanel('simulation')">Interactive Laboratory</button>
+                <button class="nav-tab-btn" id="nav-btn-importance" onclick="switchDashboardPanel('importance')">About & Operations Dossier</button>
+                <button class="dash-back-btn" onclick="toggleDisplayView('welcome-screen')">← Exit Laboratory</button>
+            </div>
+        </header>
+
+        <div id="panel-simulation" class="dashboard-view-panel panel-active">
+            <div class="main-grid">
+                
+                <div class="card">
+                    <h3 style="font-size: 1.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">Hardware Variables</h3>
+                    
+                    <div class="control-group">
+                        <div class="control-header" style="align-items: center; margin-bottom: 4px;">
+                            <span style="color: var(--voltage-color);">Source Voltage (V<sub>rms</sub>)</span>
+                            <input type="number" id="val-vrms" class="numeric-input-field" min="1" max="1000" value="120">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-header"><span style="color: var(--resistor-color);">Resistance (R)</span><span id="lbl-r">50 Ω</span></div>
+                        <input type="range" id="val-r" min="10" max="150" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-header"><span style="color: var(--inductor-color);">Inductance (L)</span><span id="lbl-l">160 mH</span></div>
+                        <input type="range" id="val-l" min="20" max="400" value="160">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-header"><span style="color: var(--capacitor-color);">Capacitance (C)</span><span id="lbl-c">45 µF</span></div>
+                        <input type="range" id="val-c" min="10" max="150" value="45">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-header"><span style="color: var(--primary);">Source Frequency (f)</span><span id="lbl-f">60 Hz</span></div>
+                        <input type="range" id="val-f" min="10" max="250" value="60">
+                    </div>
+
+                    <h3 style="font-size: 1.1rem; margin-top: 5px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Mathematical Metrics</h3>
+                    <div class="metrics-subgrid">
+                        <div class="metric-tile"><div class="tile-lbl">Net Impedance (Z)</div><div class="tile-val" id="calc-z" style="color: var(--primary);">0.00 Ω</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Loop Current (I)</div><div class="tile-val" id="calc-irms" style="color: var(--current-color);">0.00 A</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Phase Diff (θ)</div><div class="tile-val" id="calc-phase">0.0°</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Resonance (f0)</div><div class="tile-val" id="calc-f0">0.00 Hz</div></div>
+                    </div>
+
+                    <h3 style="font-size: 1.1rem; margin-top: 5px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">Power Vector System</h3>
+                    <div class="metrics-subgrid">
+                        <div class="metric-tile"><div class="tile-lbl">Active Power (P)</div><div class="tile-val" id="calc-p" style="color: var(--resistor-color);">0.0 W</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Reactive Power (Q)</div><div class="tile-val" id="calc-q" style="color: var(--inductor-color);">0.0 VAR</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Apparent Power (S)</div><div class="tile-val" id="calc-s" style="color: var(--primary);">0.0 VA</div></div>
+                        <div class="metric-tile"><div class="tile-lbl">Power Factor</div><div class="tile-val" id="calc-pf">1.000</div></div>
+                    </div>
+                </div>
+
+                <div class="card" style="justify-content: flex-start; gap: 15px;">
+                    <div class="tab-bar">
+                        <button class="tab-btn active" onclick="alterActiveView(event, 'phasor')">Phasor Plot</button>
+                        <button class="tab-btn" onclick="alterActiveView(event, 'oscilloscope')">Oscilloscope Time-Trace</button>
+                        <button class="tab-btn" onclick="alterActiveView(event, 'bode')">Impedance Frequency Spectrum</button>
+                    </div>
+
+                    <div class="canvas-box">
+                        <canvas id="lab-canvas"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="panel-importance" class="dashboard-view-panel">
+            <div class="info-layout-card">
+                <div class="info-section">
+                    <h4>What This Website Does</h4>
+                    <p>CircuitPulse operates as an advanced, zero-dependency, interactive computation laboratory that translates abstract Alternating Current (AC) electrical theorems into real-time visual vectors. By combining an immediate input event processing architecture with mathematical parsing matrices, the web engine calculates complete circuit parameters, loop currents, resonant profiles, and thermal variations as fast as the user manipulates inputs.</p>
+                    <p>Unlike standard calculators that process metrics in isolated blocks, this engine instantly synthesizes data across three distinct graphical scopes: mapping Cartesian vector structures in the Phasor Engine, tracking time-domain sine wave interactions via simulated traces, and running frequency sweeps to compile a Bode frequency attenuation graph.</p>
+                </div>
+
+                <div class="info-section">
+                    <h4>The Engineering Importance of These Computations</h4>
+                    <p>In Alternating Current networks, resistance is merely one dimension of electrical restriction. Inductors and capacitors introduce frequency-dependent constraints known as Reactance, shifting electrical energy into orthogonal imaginary vector configurations. Tracking and optimizing these phase mechanics is mission-critical for the following infrastructure environments:</p>
+                    <ul class="info-bullet-list">
+                        <li><strong>Industrial Grid Efficiency & Power Factor Corrections:</strong> Industrial machinery and manufacturing plants deploy heavy inductive motors that drive current out of phase with line voltages, wasting enormous energy resources. Calculating and maximizing the Power Factor ($\cos\theta$) enables engineers to size capacitor banks perfectly to correct current drift and stabilize the regional electricity grid.</li>
+                        <li><strong>Wireless RF Transceiver Tuning & Resonance:</strong> Smartphone antennas, radar instruments, and telecom hardware isolate inbound signal metrics by targeting the exact resonant frequency ($f_0$) computed within this laboratory framework. At perfect resonance, Inductive and Capacitive reactances perfectly cancel out, maximizing current transmission throughput.</li>
+                        <li><strong>Component Protection and Safety Mitigation:</strong> Isolating the total compound network impedance ($Z$) allows power station engineers to safely model load variations, preventing explosive short circuits, protecting electronic equipment, and engineering high-capacity distribution networks.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <footer class="brand-footer" style="margin-top: auto;">
+            <div style="border-top: 1px solid var(--border-color); padding-top: 20px; max-width: 1400px; width: 100%; margin: 0 auto;">
+                <p>&copy; 2026. All Intellectual Property Architected & Programmed by <strong>Prem Shah</strong>.</p>
+                <div class="links-container">
+                    <a href="https://github.com/PremShah-22" target="_blank">GitHub Portfolio</a>
+                    <a href="https://www.linkedin.com/in/prem-shah-848054389" target="_blank">LinkedIn Profile</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lab-canvas');
+        const ctx = canvas.getContext('2d');
+        let interfaceView = 'phasor';
+        let simulationTick = 0;
+        let runningLoopId = null;
+
+        // Input References
+        const inputVrms = document.getElementById('val-vrms');
+        const sliderR = document.getElementById('val-r');
+        const sliderL = document.getElementById('val-l');
+        const sliderC = document.getElementById('val-c');
+        const sliderF = document.getElementById('val-f');
+
+        function setupCanvasResolution() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function toggleDisplayView(targetId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+            if(targetId === 'dashboard-screen') {
+                setTimeout(() => {
+                    setupCanvasResolution();
+                    initializeProcessingLoop();
+                }, 50);
+            } else {
+                cancelAnimationFrame(runningLoopId);
+            }
+        }
+
+        function switchDashboardPanel(panelName) {
+            document.querySelectorAll('.dashboard-view-panel').forEach(p => p.classList.remove('panel-active'));
+            document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active-nav'));
+
+            if (panelName === 'simulation') {
+                document.getElementById('panel-simulation').classList.add('panel-active');
+                document.getElementById('nav-btn-simulation').classList.add('active-nav');
+            } else {
+                document.getElementById('panel-importance').classList.add('panel-active');
+                document.getElementById('nav-btn-importance').classList.add('active-nav');
+            }
+        }
+
+        function alterActiveView(event, selectedView) {
+            interfaceView = selectedView;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-nav', 'active'));
+            event.target.classList.add('active');
+        }
+
+        // Attach listeners to recalculate instantly when any input changes
+        [inputVrms, sliderR, sliderL, sliderC, sliderF].forEach(element => {
+            element.addEventListener('input', () => { if(interfaceView !== 'oscilloscope') executeEvaluationCycle(); });
+        });
+
+        function executeEvaluationCycle() {
+            let V_rms = parseFloat(inputVrms.value);
+            if (isNaN(V_rms) || V_rms <= 0) V_rms = 120; // Fallback filter protection
+
+            const R = parseFloat(sliderR.value);
+            const L = parseFloat(sliderL.value) / 1000;
+            const C = parseFloat(sliderC.value) / 1000000;
+            const f = parseFloat(sliderF.value);
+
+            // Update user values on slider label cards
+            document.getElementById('lbl-r').innerText = `${R} Ω`;
+            document.getElementById('lbl-l').innerText = `${sliderL.value} mH`;
+            document.getElementById('lbl-c').innerText = `${sliderC.value} µF`;
+            document.getElementById('lbl-f').innerText = `${f} Hz`;
+
+            // Electrical Analytics Engineering Formulas
+            const omega = 2 * Math.PI * f;
+            const XL = omega * L;
+            const XC = 1 / (omega * C);
+            const Xnet = XL - XC;
+            const Z = Math.sqrt(R*R + Xnet*Xnet);
+            
+            // Loop Current dynamically adjusts based on user inputted custom source voltage!
+            const I_rms = V_rms / Z; 
+            
+            const phaseRad = Math.atan2(Xnet, R);
+            const phaseDeg = phaseRad * (180 / Math.PI);
+            const f0 = 1 / (2 * Math.PI * Math.sqrt(L * C));
+
+            // Power Metrics Model Calculations (Fully dynamic scaling)
+            const P = I_rms * I_rms * R;
+            const Q = I_rms * I_rms * Xnet;
+            const S = I_rms * I_rms * Z;
+            const PF = Math.cos(phaseRad);
+
+            // Render updated metrics to text blocks
+            document.getElementById('calc-z').innerText = `${Z.toFixed(2)} Ω`;
+            document.getElementById('calc-irms').innerText = `${I_rms.toFixed(2)} A`;
+            document.getElementById('calc-phase').innerText = `${phaseDeg.toFixed(1)}°`;
+            document.getElementById('calc-f0').innerText = `${f0.toFixed(2)} Hz`;
+            document.getElementById('calc-p').innerText = `${P.toFixed(1)} W`;
+            document.getElementById('calc-q').innerText = `${Q.toFixed(1)} VAR`;
+            document.getElementById('calc-s').innerText = `${S.toFixed(1)} VA`;
+            document.getElementById('calc-pf').innerText = `${PF.toFixed(3)}`;
+
+            // Canvas coordinate setup bounds
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            ctx.clearRect(0, 0, w, h);
+
+            if(interfaceView === 'phasor') {
+                drawPhasorSpace(w, h, R, XL, XC, Xnet, Z);
+            } else if(interfaceView === 'bode') {
+                drawBodeFrequencySpectrum(w, h, R, L, C, f);
+            }
+            
+            return { phaseRad };
+        }
+
+        function drawPhasorSpace(w, h, R, XL, XC, Xnet, Z) {
+            const cx = w / 2; const cy = h / 2;
+            const scale = (Math.min(w, h) / 2.5) / Math.max(R, XL, XC, Z);
+            
+            ctx.strokeStyle = '#111827'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+
+            renderVectorLine(cx, cy, cx + R * scale, cy, varProp('--resistor-color'), 'R');
+            renderVectorLine(cx, cy, cx, cy - XL * scale, varProp('--inductor-color'), 'X_L');
+            renderVectorLine(cx, cy, cx, cy + XC * scale, varProp('--capacitor-color'), 'X_C');
+            renderVectorLine(cx, cy, cx + R * scale, cy - Xnet * scale, varProp('--primary'), 'Z', true);
+        }
+
+        function drawBodeFrequencySpectrum(w, h, R, L, C, targetF) {
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(40, h-30); ctx.lineTo(w-20, h-30); ctx.stroke();
+
+            ctx.fillStyle = varProp('--text-muted'); ctx.font = '10px sans-serif';
+            ctx.fillText('Impedance (Ω) vs Frequency (Hz spectrum)', 40, 20);
+
+            ctx.beginPath();
+            ctx.strokeStyle = varProp('--primary'); ctx.lineWidth = 2.5;
+            
+            const startFreq = 10; const endFreq = 250;
+            for(let sx = 40; sx < w - 20; sx++) {
+                const pct = (sx - 40) / (w - 60);
+                const loopF = startFreq + pct * (endFreq - startFreq);
+                const loopOmega = 2 * Math.PI * loopF;
+                const loopZ = Math.sqrt(R*R + Math.pow((loopOmega*L - 1/(loopOmega*C)), 2));
+                
+                const sy = (h - 40) - (loopZ * ((h - 80) / 400));
+                if(sx === 40) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+
+            const markX = 40 + ((targetF - startFreq) / (endFreq - startFreq)) * (w - 60);
+            ctx.fillStyle = varProp('--voltage-color'); ctx.beginPath();
+            ctx.arc(markX, (h - 40) - (parseFloat(document.getElementById('calc-z').innerText) * ((h - 80) / 400)), 6, 0, 2*Math.PI);
+            ctx.fill();
+        }
+
+        function drawTimeOscilloscopeTrace(w, h, phaseRad) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = '#111827'; ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = varProp('--voltage-color'); ctx.beginPath();
+            for(let x = 0; x < w; x++) {
+                const y = h/2 + Math.sin(x * 0.04 + simulationTick) * (h * 0.3);
+                if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            ctx.strokeStyle = varProp('--current-color'); ctx.beginPath();
+            for(let x = 0; x < w; x++) {
+                const y = h/2 + Math.sin(x * 0.04 + simulationTick - phaseRad) * (h * 0.3);
+                if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            ctx.fillStyle = varProp('--voltage-color'); ctx.font = '12px sans-serif'; ctx.fillText('V(t) Source Voltage', 20, 25);
+            ctx.fillStyle = varProp('--current-color'); ctx.fillText('I(t) Loop Current', 20, 42);
+        }
+
+        function renderVectorLine(x1, y1, x2, y2, color, label, bold = false) {
+            ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = bold ? 3.5 : 2;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.beginPath(); ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - 7 * Math.cos(angle - Math.PI/6), y2 - 7 * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(x2 - 7 * Math.cos(angle + Math.PI/6), y2 - 7 * Math.sin(angle + Math.PI/6));
+            ctx.fill();
+
+            ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(label, x2 + Math.cos(angle)*12 - 3, y2 + Math.sin(angle)*12 + 3);
+        }
+
+        function varProp(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+        function initializeProcessingLoop() {
+            const calculations = executeEvaluationCycle();
+            if(interfaceView === 'oscilloscope') {
+                simulationTick += 0.05;
+                drawTimeOscilloscopeTrace(canvas.width/window.devicePixelRatio, canvas.height/window.devicePixelRatio, calculations.phaseRad);
+            }
+            runningLoopId = requestAnimationFrame(initializeProcessingLoop);
+        }
+
+        window.addEventListener('resize', () => { if(document.getElementById('dashboard-screen').classList.contains('active')) setupCanvasResolution(); });
+    </script>
+</body>
+</html>
