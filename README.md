@@ -6,6 +6,8 @@
   <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black">
 </p>
 
+[🚀 Live Demo](https://premshah-22.github.io/Circuit-Pulse/)
+
 ## 📖 Overview
 
 **CircuitPulse** is an advanced interactive web application that simulates **Alternating Current (AC) circuits** in real time. Instead of simply displaying formulas and calculations, the project provides dynamic visualizations that help users understand how electrical parameters change as circuit components are adjusted.
